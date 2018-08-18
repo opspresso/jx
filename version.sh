@@ -7,7 +7,7 @@ GITHUB_TOKEN=${3}
 NOW=$(cat ./VERSION)
 NEW=$(curl -s https://api.github.com/repos/jenkins-x/jx/releases/latest | grep tag_name | cut -d'"' -f4 | xargs)
 
-printf '# %-10s %-10s %-10s\n' "${REPONAME}:" "${NOW}" "${NEW}"
+printf '# %-10s %-10s %-10s\n' "${REPONAME}" "${NOW}" "${NEW}"
 
 if [ "${NOW}" != "${NEW}" ]; then
     printf "${NEW}" > VERSION
