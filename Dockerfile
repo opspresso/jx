@@ -4,7 +4,7 @@ FROM alpine
 
 RUN apk add --no-cache bash curl
 
-ENV VERSION 0.0.0
+ENV VERSION v1.3.1072
 RUN curl -sL https://github.com/jenkins-x/jx/releases/download/${VERSION}/jx-linux-amd64.tar.gz | tar xz && \
     mv jx /usr/local/bin/jx
 
