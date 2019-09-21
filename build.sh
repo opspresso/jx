@@ -4,15 +4,12 @@ OS_NAME="$(uname | awk '{print tolower($0)}')"
 
 SHELL_DIR=$(dirname $0)
 
-CMD=${1:-${CIRCLE_JOB}}
+REPOSITORY=${GITHUB_REPOSITORY}
 
-USERNAME=${CIRCLE_PROJECT_USERNAME}
-REPONAME=${CIRCLE_PROJECT_REPONAME}
+USERNAME=${GITHUB_ACTOR}
+REPONAME=$(echo "${REPOSITORY}" | cut -d'/' -f2)
 
 REPOPATH="jenkins-x/jx"
-
-GIT_USERNAME="bot"
-GIT_USEREMAIL="bot@nalbam.com"
 
 NOW=
 NEW=
@@ -60,13 +57,11 @@ _replace() {
     fi
 }
 
-_flat_version() {
-    echo "$@" | awk -F. '{ printf("%05d%05d%05d\n", $1,$2,$3); }'
-}
+################################################################################
 
 _prepare() {
     # target
-    mkdir -p ${SHELL_DIR}/target/dist
+    mkdir -p ${SHELL_DIR}/target/publish
 
     # 755
     find ./** | grep [.]sh | xargs chmod 755
@@ -78,34 +73,51 @@ _package() {
 
     printf '# %-10s %-10s %-10s\n' "${REPONAME}" "${NOW}" "${NEW}"
 
-    if [ "${NEW}" != "" ] && [ "${NEW}" != "${NOW}" ]; then
-        printf "${NEW}" > ${SHELL_DIR}/VERSION
-        printf "${NEW}" > ${SHELL_DIR}/target/VERSION
+    _s3_sync
 
-        printf "${NEW}" > ${SHELL_DIR}/target/dist/${REPONAME}
-
-        _replace "s/ENV VERSION .*/ENV VERSION ${NEW}/g" ${SHELL_DIR}/Dockerfile
-        _replace "s/ENV VERSION .*/ENV VERSION ${NEW}/g" ${SHELL_DIR}/README.md
-
-        _git_push
-
-        echo "stop" > ${SHELL_DIR}/target/circleci-stop
-    fi
+    _git_push
 }
 
-_git_push() {
-    if [ -z ${GITHUB_TOKEN} ]; then
+_s3_sync() {
+    BIGGER=$(echo -e "${NOW}\n${NEW}" | sort -V -r | head -1)
+
+    if [ "${BIGGER}" == "${NOW}" ]; then
+        _result "_s3_sync ${NOW} >= ${NEW}"
         return
     fi
 
-    git config --global user.name "${GIT_USERNAME}"
-    git config --global user.email "${GIT_USEREMAIL}"
+    _result "_s3_sync ${NEW}"
 
-    git add --all
-    git commit -m "${NEW}"
+    printf "${NEW}" > ${SHELL_DIR}/LATEST
+    printf "${NEW}" > ${SHELL_DIR}/target/publish/${REPONAME}
+}
 
-    _command "git push github.com/${USERNAME}/${REPONAME} ${NEW}"
-    git push -q https://${GITHUB_TOKEN}@github.com/${USERNAME}/${REPONAME}.git master
+_git_push() {
+    if [ "${NEW}" == "" ] || [ "${NEW}" == "${NOW}" ]; then
+        _result "_git_push ${NOW} == ${NEW}"
+        return
+    fi
+
+    _result "_git_push ${NEW}"
+
+    printf "${NEW}" > ${SHELL_DIR}/VERSION
+    printf "${NEW}" > ${SHELL_DIR}/target/commit_message
+
+    _replace "s/ENV VERSION .*/ENV VERSION ${NEW}/g" ${SHELL_DIR}/Dockerfile
+    _replace "s/ENV VERSION .*/ENV VERSION ${NEW}/g" ${SHELL_DIR}/README.md
+
+    cat <<EOF > ${SHELL_DIR}/target/slack_message.json
+{
+    "username": "${USERNAME}",
+    "attachments": [{
+        "color": "good",
+        "footer": "<https://github.com/${REPOSITORY}/releases/tag/${VERSION}|${REPOSITORY}>",
+        "footer_icon": "https://repo.opspresso.com/favicon/github.png",
+        "title": "${REPONAME}",
+        "text": "\`${VERSION}\`"
+    }]
+}
+EOF
 }
 
 ################################################################################
