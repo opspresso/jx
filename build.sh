@@ -80,13 +80,19 @@ _pickup() {
     cat ${REPOVERSIONS}
 
     while read REPOVERSION; do
+        HAS="false"
+
         while read THISVERSION; do
             if [ "${REPOVERSION}" == "${THISVERSION}" ]; then
+                HAS="true"
                 break
             fi
-
-            VERSION="${REPOVERSION}"
         done < ${THISVERSIONS}
+
+        if [ "${HAS}" == "false" ]; then
+            VERSION="${REPOVERSION}"
+            break
+        fi
     done < ${REPOVERSIONS}
 
     if [ -z "${VERSION}" ]; then
