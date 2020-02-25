@@ -12,11 +12,11 @@ docker pull opspresso/jx
 ## version
 
 ```
-ENV VERSION v2.0.1208
+ENV VERSION v2.0.1209
 ```
 
 ## latest
 
 ```
-ENV LATEST v2.0.1208
+ENV LATEST v2.0.1209
 ```
